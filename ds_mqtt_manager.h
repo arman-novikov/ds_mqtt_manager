@@ -45,11 +45,11 @@ typedef char *const props_states_t;
 *            Console *consOLE = new Console();
 *
 *            constexpr size_t PROPS_NUM = 3;
-*            constexpr char strID[] = "box_choco_mokka_EK$$$";
+*            constexpr char strID[] = "box_yammychoco_mokka_EK$$$";
 *
-*            const char rname1[] = "box";
-*            const char rname2[] = "choco";
-*            const char rname3[] = "mokka";
+*            const char rname1[] = "box"; //> will be shown in ERP as "Box"
+*            const char rname2[] = "yammy_choco"; //> will be shown in ERP as "Yammy choco"
+*            const char rname3[] = "_mokka"; // not to be shown in the ERP because of prefix '_'
 *            const char *propsNames[PROPS_NUM] = {rname1, rname2, rname3};
 *            constexpr int riddles_num_in_ERP[PROPS_NUM] = {2,5,8};
 *
@@ -57,6 +57,8 @@ typedef char *const props_states_t;
 *            void r1a() {} void r1f() {} void r1r() {}
 *            void r2a() {} void r2f() {} void r2r() {}
 *            void r3a() {} void r3f() {} void r3r() {}
+*            void my_special_cb(char* topic, uint8_t* payload, unsigned int len)
+*            { if (strcmp(topic, "/er/music/cmd")) do_something(); }
 *
 *            prop_CBs_t prop1 = { r1a, r1f, r1r };
 *            prop_CBs_t prop2 = { r2a, r2f, r2r };
@@ -317,6 +319,7 @@ private:
 * @param [in] ERP_name prop's name in ERP
 * @param [in] strStatus prop's current state
 * @param [in] number prop's number in ERP
+* @detail if strId[0] == '_' the riddle not to be shown in the ERP
 */
   static void _msgInfo(char *msgData,
                 const char* strId,
@@ -325,6 +328,9 @@ private:
                 const int &number)
   {
     //"{\"strId\":\"" MQTT_1_STRID "\", \"strName\":\"" MQTT_1_STRNAME "\", \"strStatus\":\"" + strStatus1 + "\", \"number\":\"" + MQTT_1_NUMBER + "\"}";
+
+    if (strId[0] == '_') /// < means no need to public in ERP
+        return;
 
     //  begin  //
     msgData[0] = 0;
