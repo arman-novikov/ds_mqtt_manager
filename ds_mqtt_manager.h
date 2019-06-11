@@ -2,7 +2,7 @@
 #define DS_MQTT_MANAGER
 
 #include <ds_console.h>
-#include <Ethernet2.h>
+#include <Ethernet.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
 
