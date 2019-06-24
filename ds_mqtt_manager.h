@@ -168,22 +168,15 @@ public:
   }
 
 /*!
-* @brief does mqtt routine if connected
-*         else tries to connect
+* @brief a procedure to be called in loop
+* @param props_states props' current states
+* @warning props_states' elements' number must be equal to props_count
+* @detail calls methods: _check and _sendInfoLoop
 */
-  void check()
+  void routine(const char *const *props_states)
   {
-    if ( _client.connected() ) {
-      _client.loop();           /// does mqtt routine
-      return;
-    }
-
-    unsigned long now = millis();             /// every 5 seconds
-    if (now - _lastReconnectAttempt > 5000) {
-      _lastReconnectAttempt = now;
-      if (this->_reconnect())                /// tries to reconnect
-        _lastReconnectAttempt = 0;
-    }
+    _check();
+    _sendInfoLoop(props_states);
   }
 
 /*!
@@ -206,6 +199,31 @@ public:
     _client.subscribe(topic);
   }
 
+  MQTT_manager(const MQTT_manager&)             = delete;
+  MQTT_manager(MQTT_manager&&)                  = delete;
+  MQTT_manager& operator=(const MQTT_manager&)  = delete;
+  MQTT_manager& operator=(MQTT_manager&&)       = delete;
+
+private:
+/*!
+* @brief does mqtt routine if connected
+*         else tries to connect
+*/
+  void _check()
+  {
+    if ( _client.connected() ) {
+      _client.loop();           /// does mqtt routine
+      return;
+    }
+
+    unsigned long now = millis();             /// every 5 seconds
+    if (now - _lastReconnectAttempt > 5000) {
+      _lastReconnectAttempt = now;
+      if (this->_reconnect())                /// tries to reconnect
+        _lastReconnectAttempt = 0;
+    }
+  }
+
 /*!
 * @brief publishes info about props' props states every second,
 *        also, kind of a heartbeat system
@@ -215,7 +233,7 @@ public:
             and the 1st letter to upper case
 * @todo avoid using of var "riddleStrName"
 */
-  void sendInfoLoop(const char *const *props_states)
+  void _sendInfoLoop(const char *const *props_states)
   {
     static unsigned long lastTS = 0;
     if (millis() - lastTS <= 1000)
@@ -247,12 +265,6 @@ public:
     lastTS = millis();
   }
 
-  MQTT_manager(const MQTT_manager&)             = delete;
-  MQTT_manager(MQTT_manager&&)                  = delete;
-  MQTT_manager& operator=(const MQTT_manager&)  = delete;
-  MQTT_manager& operator=(MQTT_manager&&)       = delete;
-
-private:
 /*!
 * @brief tries to reconnect to mqqt server
 * @return bool true if reconnected and false otherwise
