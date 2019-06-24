@@ -206,11 +206,50 @@ public:
 
 private:
 /*!
+* @brief makes hardware checks
+* @return zero on success otherwise error code
+* @detail check ethernet module and cable availbility         
+* @todo DRY it, but remain memory usage amount
+*/
+  int _hardware_status()
+  {
+    static bool last_status = true;
+    static unsigned long last_time_stamp = millis();
+        
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+      if (millis() - last_time_stamp > 1000) {
+        _console->println(F("ethernet module missing"));
+        last_time_stamp = millis();
+      }
+      last_status = false;
+      return -1;
+    }
+
+    if (Ethernet.linkStatus() == LinkOFF) {
+      if (millis() - last_time_stamp > 1000) {
+        _console->println(F("LAN cable missing"));
+        last_time_stamp = millis();
+      }
+      last_status = false;
+      return -1;
+    }
+
+    if (last_status == false)
+      _console->println(F("ethernet hardware is restored"));
+    
+    last_status = true;
+    return 0;
+  }
+
+/*!
 * @brief does mqtt routine if connected
 *         else tries to connect
 */
   void _check()
   {
+    if (_hardware_status())
+      return;
+      
     if ( _client.connected() ) {
       _client.loop();           /// does mqtt routine
       return;
