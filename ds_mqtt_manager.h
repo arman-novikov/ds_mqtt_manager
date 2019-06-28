@@ -135,16 +135,16 @@ public:
                                 continue;
 
                               if (strcmp(payloadStr, "activate") == 0) {
-								if((*props_CBs[i])[MQTT_CB_ACTIVATE])
-									(*props_CBs[i])[MQTT_CB_ACTIVATE]();
+								                if((*props_CBs[i])[MQTT_CB_ACTIVATE])
+									                (*props_CBs[i])[MQTT_CB_ACTIVATE]();
                                 return;
                               } else if (strcmp(payloadStr, "finish") == 0) {
-								if((*props_CBs[i])[MQTT_CB_FINISH])
-									(*props_CBs[i])[MQTT_CB_FINISH]();
+								                if((*props_CBs[i])[MQTT_CB_FINISH])
+									                (*props_CBs[i])[MQTT_CB_FINISH]();
                                 return;
                               } else if (strcmp(payloadStr, "reset") == 0) {
-								if((*props_CBs[i])[MQTT_CB_RESET])
-									(*props_CBs[i])[MQTT_CB_RESET]();
+								                if((*props_CBs[i])[MQTT_CB_RESET])
+									                (*props_CBs[i])[MQTT_CB_RESET]();
                                 return;
                               }
                             }
