@@ -89,7 +89,9 @@ template<size_t props_count,
          void (*er_onStart)(),
          void (*er_onReset)(),
          props_CBs_t *props_CBs,
-         void (*special_CB)(char*, uint8_t*, unsigned int) = nullptr>
+         void (*special_CB)(char*, uint8_t*, unsigned int) = nullptr,
+         const char** extra_topics = nullptr,
+         const size_t extra_topics_count = 0>
 class MQTT_manager
 {
 public:
@@ -193,15 +195,6 @@ public:
     return _client.publish(topic, payload);
   }
 
-/*!
-* @brief decorator providing access to mqtt subscribe interface
-* @param [in] topic kind of address
-*/
-  void subscribe(const char* topic)
-  {
-    _client.subscribe(topic);
-  }
-
   MQTT_manager(const MQTT_manager&)             = delete;
   MQTT_manager(MQTT_manager&&)                  = delete;
   MQTT_manager& operator=(const MQTT_manager&)  = delete;
@@ -284,6 +277,9 @@ private:
     for (size_t i = 0; i < props_count; ++i) {
       char msgBuf[MSGINFO_BUF_SIZE] = {0};
       char propERP_Name[PROP_STR_NAME_MAX_SIZE] = {0}; ///   optimize and avoid this var: delegate to server?
+      
+      if (props_STRIDS[i][0] == '_') /// < means no need to public in ERP
+        return;
 
       strcpy(propERP_Name, props_STRIDS[i]);
       propERP_Name[0] -= 32;                           /// upper case of the 1st letter
@@ -343,6 +339,9 @@ private:
     }
 
     _client.subscribe("/er/cmd");
+
+    for (size_t i = 0; i < extra_topics_count; ++i)
+      _client.subscribe(extra_topics[i]);
   }
   
 /*!
@@ -382,11 +381,6 @@ private:
                 const int &number)
   {
     //"{\"strId\":\"" MQTT_1_STRID "\", \"strName\":\"" MQTT_1_STRNAME "\", \"strStatus\":\"" + strStatus1 + "\", \"number\":\"" + MQTT_1_NUMBER + "\"}";
-
-    if (strId[0] == '_') /// < means no need to public in ERP
-        return;
-
-    //  begin  //
     msgData[0] = 0;
     strcat(msgData, "{");
 
