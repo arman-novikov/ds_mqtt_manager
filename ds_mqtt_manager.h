@@ -188,11 +188,12 @@ public:
 * @brief decorator providing access to mqtt publish interface
 * @param [in] topic kind of address
 * @param [in] payload the msg itself
+* @param [in] retained if true the value is supposed to be kept on mqtt server
 * @return bool true if published and false otherwise
 */
-  bool publish(const char* topic, const char* payload)
+  bool publish(const char* topic, const char* payload, bool retained = false)
   {
-    return _client.publish(topic, payload);
+    return _client.publish(topic, payload, retained);
   }
 
   MQTT_manager(const MQTT_manager&)             = delete;
