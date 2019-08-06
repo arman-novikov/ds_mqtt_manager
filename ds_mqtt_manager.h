@@ -162,8 +162,9 @@ public:
                                 return;
                               }                                
                             }
-
+#pragma GCC diagnostic ignored "-Waddress"
                             if (special_CB)
+#pragma GCC diagnostic pop
                               special_CB(topic, payload, length);
 
                             memset(payloadStr, 0, length);
