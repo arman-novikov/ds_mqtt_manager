@@ -14,10 +14,7 @@ constexpr char MQTT_STRSTATUS_READY[]    = "Not activated"; // "Ready"?
 constexpr char MQTT_STRSTATUS_ENABLED[]  = "Activated";
 constexpr char MQTT_STRSTATUS_FINISHED[] = "Finished";
 
-constexpr size_t MSGINFO_BUF_SIZE           = 150U;  // -> 128 ? true
-constexpr size_t PROP_STR_NAME_MAX_SIZE     = 32U;
-constexpr size_t PROP_STATUS_MAX_SIZE       = 20U;   // -> 16 ?
-constexpr size_t ON_CONNECTED_BUF_MAX_SIZE  = 128U;  // -> 64 ?
+constexpr size_t PROP_STATUS_MAX_SIZE       = 16U;
 constexpr size_t PROP_CB_TYPES_NUM          = 3U; // onActivate, onFinish, onReset
 
 enum prop_cb_types { MQTT_CB_ACTIVATE, MQTT_CB_FINISH, MQTT_CB_RESET };
@@ -36,10 +33,8 @@ typedef char *const props_states_t;
 * @param [in] er_onReset procedure called on ERP Reset All cmd
 * @param [in] props_CBs array of each prop callbacks (onActivate, OnFinish, onReset)
 * @param [in] special_CB pointer to a procedure to process a mqtt_msg in a custom way
-* @warning callbacks have to be non nullptr
 * @warning props_CBs has to contatin props_count arrays
            of each prop's callbacks (3 CBs for each prop)
-* @todo add a subscribe mechanism
 * @todo reorder data fields for memory align
 * @example
 *            Console *consOLE = new Console();
@@ -197,12 +192,20 @@ public:
     return _client.publish(topic, payload, retained);
   }
 
+  bool is_connected()
+  {
+    return _client.connected();
+  }
+
   MQTT_manager(const MQTT_manager&)             = delete;
   MQTT_manager(MQTT_manager&&)                  = delete;
   MQTT_manager& operator=(const MQTT_manager&)  = delete;
   MQTT_manager& operator=(MQTT_manager&&)       = delete;
 
 private:
+  static constexpr size_t MSGINFO_BUF_SIZE           = 150U;  // -> 128 ? true
+  static constexpr size_t PROP_STR_NAME_MAX_SIZE     = 32U;
+  static constexpr size_t ON_CONNECTED_BUF_MAX_SIZE  = 128U;  // -> 64 ?
 /*!
 * @brief makes hardware checks
 * @return zero on success otherwise error code
