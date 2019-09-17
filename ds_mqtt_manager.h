@@ -5,6 +5,7 @@
 #include <Ethernet.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
+#include <avr/wdt.h>
 
 /*!
 * @file contains class MQTT_manager, types and values
@@ -421,6 +422,16 @@ private:
   EthernetClient  _ethernetClient;
   unsigned long   _lastReconnectAttempt;
   const byte      _ip_ending;
+};
+
+struct ds_MQTT {
+  static void reset()
+  {
+    //*_console << F("default_rst") << endl; // todo: make static console
+    //_console->telnet_stop();
+    wdt_enable(WDTO_60MS);
+    delay(1000);
+  }
 };
 
 #endif
