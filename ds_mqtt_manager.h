@@ -24,6 +24,15 @@ typedef prop_CBs_t* props_CBs_t;
 typedef char prop_state_t[PROP_STATUS_MAX_SIZE];
 typedef char *const props_states_t;
 
+struct ds_MQTT {
+  static void reset()
+  {
+    wdt_enable(WDTO_60MS);
+    delay(1000);
+  }
+  static constexpr int8_t NOT_SHOW = -1;
+};
+
 /*!
 * @class MQTT_manager 
 * @brief Facade class to use mqtt protocol via ethernet
@@ -98,11 +107,7 @@ public:
 * @param [in] ip_ending necessary for Ethernet static object (Singleton)
 * @param [in] mqqt_port server port for PubSubClient (this class' field)
 * @todo shrink it
-* @todo provide nullptr checks
-* @todo add early returns on matching
-* @todo optimize with constexpr
 * @todo replace the hardcode
-* @todo use pointer to ip for _ip
 */
   explicit MQTT_manager(const Console *console,
                         const byte ip_ending,
@@ -125,11 +130,11 @@ public:
                             payloadStr[length] = {0};
                             
                             for (size_t i = 0; i < props_count; ++i) {
-                              char buf[64] = {"/er/"};                  /// !!! HARDCODE !!! 64 -> 32
+                              char buf[32] = {"/er/"};                  /// !!! HARDCODE !!!
                               strcat(buf, props_STRIDS[i]);
                               strcat(buf, "/cmd");
 
-                              if (strcmp(topic, buf) != 0)
+                              if (strcmp(topic, buf) != 0 || props_CBs[i] == nullptr)
                                 continue;
 
                               if (strcmp(payloadStr, "activate") == 0) {
@@ -163,7 +168,7 @@ public:
 #pragma GCC diagnostic pop
                               special_CB(topic, payload, length);
 
-                            memset(payloadStr, 0, length);
+                            memset(payloadStr, 0, length); // todo: delete it
                           }
                         );
     delay(1500);
@@ -204,9 +209,8 @@ public:
   MQTT_manager& operator=(MQTT_manager&&)       = delete;
 
 private:
-  static constexpr size_t MSGINFO_BUF_SIZE           = 150U;  // -> 128 ? true
-  static constexpr size_t PROP_STR_NAME_MAX_SIZE     = 32U;
-  static constexpr size_t ON_CONNECTED_BUF_MAX_SIZE  = 128U;  // -> 64 ?
+  static constexpr size_t BUF_SIZE                   = 128U;
+  static constexpr size_t ON_CONNECTED_BUF_MAX_SIZE  = 32U;
 /*!
 * @brief makes hardware checks
 * @return zero on success otherwise error code
@@ -281,27 +285,18 @@ private:
       return;    
 
     for (size_t i = 0; i < props_count; ++i) {
-      char msgBuf[MSGINFO_BUF_SIZE] = {0};
-      char propERP_Name[PROP_STR_NAME_MAX_SIZE] = {0}; ///   optimize and avoid this var: delegate to server?
+      char msgBuf[BUF_SIZE] = {0};
       
-      if (props_STRIDS[i][0] == '_') /// < means no need to public in ERP
-        return;
+      if (props_STRIDS[i] == nullptr) /// < means no need to public in ERP
+        continue;
 
-      strcpy(propERP_Name, props_STRIDS[i]);
-      propERP_Name[0] -= 32;                           /// upper case of the 1st letter
-      
-      char *temp = propERP_Name;                       /// all '_'s into ' 's
-      while (*temp) {
-        if (*temp == '_')
-          *temp = ' ';
-        ++temp;
-      }
+      if (props_STRIDS[i][0] == '_' || mqtt_numbers[i] < 0) /// < todo: delete '_'
+        continue;
 
       _msgInfo(msgBuf, // input param
                props_STRIDS[i],
-               propERP_Name,
                props_states[i],
-               mqtt_numbers[i]); /// mqqt_number + i
+               mqtt_numbers[i]);
 
       this->publish("/er/riddles/info", msgBuf);
     }
@@ -375,46 +370,55 @@ private:
 * @brief "builds" a string according to the customized mqtt protocol
 * @param [out] msgData result of the procedure
 * @param [in] strId prop id name
-* @param [in] ERP_name prop's name in ERP
 * @param [in] strStatus prop's current state
 * @param [in] number prop's number in ERP
 * @detail if strId[0] == '_' the riddle not to be shown in the ERP
 */
   static void _msgInfo(char *msgData,
                 const char* strId,
-                const char* ERP_name,
                 const char* strStatus,
                 const int &number)
   {
     //"{\"strId\":\"" MQTT_1_STRID "\", \"strName\":\"" MQTT_1_STRNAME "\", \"strStatus\":\"" + strStatus1 + "\", \"number\":\"" + MQTT_1_NUMBER + "\"}";
-    msgData[0] = 0;
-    strcat(msgData, "{");
+	char *spacer_ptr;
+	size_t start, end;
+	msgData[0] = 0;
+	strcat(msgData, "{");
 
-    //  strId  //
-    strcat(msgData, "\"strId\":\"");
-    strcat(msgData, strId);
-    strcat(msgData, "\", ");
+	//  strId  //
+	strcat(msgData, "\"strId\":\"");
+	strcat(msgData, strId);
+	strcat(msgData, "\", ");
 
-    //  strName  //
-    strcat(msgData, "\"strName\":\"");
-    strcat(msgData, ERP_name);
-    strcat(msgData, "\", ");
+	//  strName  //
+	strcat(msgData, "\"strName\":\"");
+	end = start = strlen(msgData);
+	strcat(msgData, strId);
+	end += strlen(strId);
+	spacer_ptr = msgData + start;
+	while (spacer_ptr < msgData + end) { // all '_'s into ' 's
+		if (*spacer_ptr == '_')
+			*spacer_ptr = ' ';
+		++spacer_ptr;
+	}
+	msgData[start] -= 32; // capitalizing the 1st letter
+	strcat(msgData, "\", ");
 
-    //  strStatus  //
-    strcat(msgData, "\"strStatus\":\"");
-    strcat(msgData, strStatus);
-    strcat(msgData, "\", ");
+	//  strStatus  //
+	strcat(msgData, "\"strStatus\":\"");
+	strcat(msgData, strStatus);
+	strcat(msgData, "\", ");
 
-    //  number  //
-    strcat(msgData, "\"number\":\"");
-    char strVal2[8];
-    itoa(number, strVal2, 10);
-    strcat(msgData, strVal2);
-    strcat(msgData, "\"");
+	//  number  //
+	strcat(msgData, "\"number\":\"");
+	char strVal2[8];
+	itoa(number, strVal2, 10);
+	strcat(msgData, strVal2);
+	strcat(msgData, "\"");
 
-    //  end  //
-    strcat(msgData, "}");
-  }
+	//  end  //
+	strcat(msgData, "}");
+}
 
   const Console   *_console;
   IPAddress       _server;
@@ -422,16 +426,6 @@ private:
   EthernetClient  _ethernetClient;
   unsigned long   _lastReconnectAttempt;
   const byte      _ip_ending;
-};
-
-struct ds_MQTT {
-  static void reset()
-  {
-    //*_console << F("default_rst") << endl; // todo: make static console
-    //_console->telnet_stop();
-    wdt_enable(WDTO_60MS);
-    delay(1000);
-  }
 };
 
 #endif
