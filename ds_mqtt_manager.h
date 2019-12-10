@@ -31,6 +31,7 @@ struct ds_MQTT {
     delay(1000);
   }
   static constexpr int8_t NOT_SHOW = -1;
+  typedef void (*mqtt_msg_handler_t)(char*, uint8_t*, unsigned int);
 };
 
 /*!
@@ -124,53 +125,7 @@ public:
     _console->println(F("Ethernet Initialized..."));
     _client.setClient(_ethernetClient);
     _client.setServer(_server, mqtt_port);
-    _client.setCallback( [] (char* topic, uint8_t* payload, unsigned int length)
-                          {
-                            char* payloadStr = reinterpret_cast<char*>(payload);
-                            payloadStr[length] = {0};
-                            
-                            for (size_t i = 0; i < props_count; ++i) {
-                              char buf[32] = {"/er/"};                  /// !!! HARDCODE !!!
-                              strcat(buf, props_STRIDS[i]);
-                              strcat(buf, "/cmd");
-
-                              if (strcmp(topic, buf) != 0 || props_CBs[i] == nullptr)
-                                continue;
-
-                              if (strcmp(payloadStr, "activate") == 0) {
-								                if((*props_CBs[i])[MQTT_CB_ACTIVATE])
-									                (*props_CBs[i])[MQTT_CB_ACTIVATE]();
-                                return;
-                              } else if (strcmp(payloadStr, "finish") == 0) {
-								                if((*props_CBs[i])[MQTT_CB_FINISH])
-									                (*props_CBs[i])[MQTT_CB_FINISH]();
-                                return;
-                              } else if (strcmp(payloadStr, "reset") == 0) {
-								                if((*props_CBs[i])[MQTT_CB_RESET])
-									                (*props_CBs[i])[MQTT_CB_RESET]();
-                                return;
-                              }
-                            }
-
-                            if (strcmp(topic, "/er/cmd") == 0) {
-                              if (strcmp(payloadStr, "start") == 0) {
-                                er_onStart();
-                                return;
-                              }                                
-
-                              if (strcmp(payloadStr, "reset") == 0) {
-                                er_onReset();
-                                return;
-                              }                                
-                            }
-#pragma GCC diagnostic ignored "-Waddress"
-                            if (special_CB)
-#pragma GCC diagnostic pop
-                              special_CB(topic, payload, length);
-
-                            memset(payloadStr, 0, length); // todo: delete it
-                          }
-                        );
+    _client.setCallback(default_msg_handler);
     delay(1500);
   }
 
@@ -211,6 +166,7 @@ public:
 private:
   static constexpr size_t BUF_SIZE                   = 128U;
   static constexpr size_t ON_CONNECTED_BUF_MAX_SIZE  = 32U;
+  static void default_msg_handler(char* topic, uint8_t* payload, unsigned int length);
 /*!
 * @brief makes hardware checks
 * @return zero on success otherwise error code
@@ -427,5 +383,67 @@ private:
   unsigned long   _lastReconnectAttempt;
   const byte      _ip_ending;
 };
+
+
+template<size_t props_count,
+         const char* CLIENT_NAME,
+         const char** props_STRIDS,
+         const int* mqtt_numbers,
+         void (*er_onStart)(),
+         void (*er_onReset)(),
+         props_CBs_t *props_CBs,
+         void (*special_CB)(char*, uint8_t*, unsigned int),
+         const char** extra_topics,
+         const size_t extra_topics_count
+>  void MQTT_manager<
+  props_count, CLIENT_NAME, props_STRIDS,
+  mqtt_numbers, er_onStart, er_onReset, props_CBs,
+  special_CB, extra_topics, extra_topics_count>::default_msg_handler
+    (char* topic, uint8_t* payload, unsigned int length) 
+{
+  char* payloadStr = reinterpret_cast<char*>(payload);
+    payloadStr[length] = {0};
+    
+    for (size_t i = 0; i < props_count; ++i) {
+      char buf[32] = {"/er/"};                  /// !!! HARDCODE !!!
+      strcat(buf, props_STRIDS[i]);
+      strcat(buf, "/cmd");
+
+      if (strcmp(topic, buf) != 0 || props_CBs[i] == nullptr)
+        continue;
+
+      if (strcmp(payloadStr, "activate") == 0) {
+        if((*props_CBs[i])[MQTT_CB_ACTIVATE])
+          (*props_CBs[i])[MQTT_CB_ACTIVATE]();
+        return;
+      } else if (strcmp(payloadStr, "finish") == 0) {
+        if((*props_CBs[i])[MQTT_CB_FINISH])
+          (*props_CBs[i])[MQTT_CB_FINISH]();
+        return;
+      } else if (strcmp(payloadStr, "reset") == 0) {
+        if((*props_CBs[i])[MQTT_CB_RESET])
+          (*props_CBs[i])[MQTT_CB_RESET]();
+        return;
+      }
+    }
+
+    if (strcmp(topic, "/er/cmd") == 0) {
+      if (strcmp(payloadStr, "start") == 0) {
+        er_onStart();
+        return;
+      }                                
+
+      if (strcmp(payloadStr, "reset") == 0) {
+        er_onReset();
+        return;
+      }                                
+    }
+  #pragma GCC diagnostic ignored "-Waddress"
+    if (special_CB)
+  #pragma GCC diagnostic pop
+      special_CB(topic, payload, length);
+
+    memset(payloadStr, 0, length); // todo: delete it  
+}
 
 #endif
